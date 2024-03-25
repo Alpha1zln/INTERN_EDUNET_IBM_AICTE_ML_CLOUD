@@ -1,0 +1,333 @@
+# This project is aimed at predicting the case of customers' default payments in Taiwan. 
+# From the perspective of risk management, the result of predictive accuracy of the estimated probability of default will be more valuable 
+# than the binary result of classification - credible or not credible clients. 
+
+# We can use the K-S chart to evaluate which customers will default on their credit card payments. 
+from google.colab import drive
+drive.mount('/content/drive')
+
+
+import pandas as pd
+import numpy as np
+import warnings
+warnings.filterwarnings("ignore")
+
+import matplotlib.pyplot as plt
+%matplotlib inline
+import seaborn as sns
+
+from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import RandomForestClassifier
+from xgboost import XGBClassifier
+from sklearn.naive_bayes import GaussianNB
+from sklearn.neighbors import KNeighborsClassifier
+from imblearn.under_sampling import EditedNearestNeighbours
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.svm import SVC
+
+from sklearn.model_selection import train_test_split
+from sklearn.model_selection import GridSearchCV
+from sklearn.model_selection import StratifiedKFold
+from sklearn.model_selection import RepeatedStratifiedKFold
+from imblearn.over_sampling import SMOTE
+from imblearn.combine import SMOTETomek
+#from imblearn.under_sampling import SMOTE
+
+from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import PowerTransformer
+
+from sklearn.metrics import classification_report, confusion_matrix, precision_recall_curve, auc, f1_score, make_scorer
+from sklearn.metrics import accuracy_score, precision_score, recall_score, roc_auc_score #, plot_confusion_matrix
+
+
+df1 = pd.read_csv("/content/drive/MyDrive/2 lab Nit mca/4th sem/INTERN/Credit Card Defaulter Prediction_csv.csv")
+
+df1.head(5)
+
+
+
+df1 = df1.rename(columns={"default ": "default_payment", "PAY_0": "PAY_1"})
+
+df1_main = df1.copy()
+df1_main.head(1)
+
+df1.info()
+
+
+# find null values
+df1.isnull().sum()
+
+
+# Renaming the target column for better reference. and changing PAY_0 to PAY_1.
+df1.rename(columns={"default" : "default_payment", "PAY_0":"PAY_1"}, inplace=True)
+df1.columns
+
+
+df1["SEX"].value_counts()
+
+
+df1.EDUCATION.value_counts()
+df1.MARRIAGE.value_counts()
+
+
+cat_columns = []
+num_columns = []
+
+for columns in df1.columns:
+    if df1[columns].nunique()<12:
+        cat_columns.append(columns)
+    else:
+        num_columns.append(columns)
+    
+print("Categorical Columns Are : ", cat_columns)
+print("Numerical Columns Are : ", num_columns)
+
+
+# Replace 'F' with 0 and 'M' with 1 in the 'SEX' column
+df1['SEX'] = df1['SEX'].replace({'F': 0, 'MALE': 1})
+
+df1.SEX.value_counts()
+
+
+# Calculate the frequency of each category in the 'EDUCATION' column
+education_counts = df1['EDUCATION'].value_counts()
+
+# Sort the categories based on their frequencies in descending order
+sorted_categories = education_counts.sort_values(ascending=False)
+
+# Create a mapping dictionary to assign labels based on the sorted order
+education_mapping = {category: i+1 for i, category in enumerate(sorted_categories.index)}
+
+# Map the values in the 'EDUCATION' column using the mapping dictionary
+df1['EDUCATION'] = df1['EDUCATION'].map(education_mapping)
+
+
+
+fil = (df1['EDUCATION'] == 5) | (df1['EDUCATION'] == 6)
+df1.loc[fil, 'EDUCATION'] = 4
+df1['EDUCATION'].value_counts()
+
+
+plot_vis(df1.EDUCATION)
+
+
+df1['MARRIAGE'].value_counts()
+
+
+# Calculate the frequency of each category in the 'EDUCATION' column
+MARRIAGE_counts = df1['MARRIAGE'].value_counts()
+
+# Sort the categories based on their frequencies in descending order
+sorted_categories = MARRIAGE_counts.sort_values(ascending=False)
+
+# Create a mapping dictionary to assign labels based on the sorted order
+MARRIAGE_mapping = {category: i+1 for i, category in enumerate(sorted_categories.index)}
+
+# Map the values in the 'EDUCATION' column using the mapping dictionary
+df1['MARRIAGE'] = df1['MARRIAGE'].map(MARRIAGE_mapping)
+
+
+fil = df1['MARRIAGE'] == 4
+df1.loc[fil, 'MARRIAGE'] = 3
+df1['MARRIAGE'].value_counts()
+
+
+df1.MARRIAGE.value_counts()
+
+
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+# Set the style of seaborn
+sns.set_style("whitegrid")
+
+# Create a histogram for the 'AGE' column
+plt.figure(figsize=(10, 6))
+sns.histplot(data=df1, x='AGE', bins=30, kde=True, color='skyblue')
+plt.title('Distribution of Age')
+plt.xlabel('Age')
+plt.ylabel('Frequency')
+plt.show()
+
+
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+def plot_cat_columns(column_name):
+    # Clean column name (remove leading/trailing whitespaces)
+    column_name = column_name.strip()
+    
+    plt.figure(figsize=(8, 6))
+    sns.countplot(data=df1, x=column_name, hue='default_payment')
+    plt.title(f'Defaults Distribution by {column_name}')
+    plt.xlabel(column_name)
+    plt.ylabel('Count')
+    plt.legend(title='Default Payment', loc='upper right')
+    plt.show()
+
+plot_cat_columns("SEX")
+
+
+# Replace 'Y' with 1 and 'N' with 0
+df1['default_payment'] = df1['default_payment'].replace({'Y': 1, 'N': 0})
+
+
+X = df1.drop(['default_payment'], axis=1)  
+y = df1['default_payment']
+
+X_train, X_test, y_train, y_test = train_test_split(X,y, test_size=0.2, stratify=y, random_state=42)
+
+
+
+
+
+
+
+
+
+
+!pip install scikit-learn
+from sklearn.model_selection import cross_val_score
+
+cv_scores = cross_val_score(LR, X, y, cv=5)
+
+
+LR = LogisticRegression(random_state=0)
+LR.fit(X_train, y_train)
+y_pred = LR.predict(X_test)
+print('Accuracy:', accuracy_score(y_pred,y_test))
+
+cv_scores = cross_val_score(LR, X, y, cv=5)
+print()
+print(classification_report(y_test, y_pred))
+print()
+print("Average 5-Fold CV Score: {}".format(round(np.mean(cv_scores),4)),
+      ", Standard deviation: {}".format(round(np.std(cv_scores),4)))
+
+
+from sklearn.preprocessing import MinMaxScaler
+
+scaler = MinMaxScaler()
+
+for column in df1.columns:
+    if column != 'default_payment':
+        df1[column] = scaler.fit_transform(np.array(df1[column]).reshape(-1,1))
+
+
+# Train Test Split
+X = df1.drop(['default_payment'], axis=1)  
+y = df1['default_payment']
+
+X_train, X_test, y_train, y_test = train_test_split(X,y, test_size=0.2, random_state=42)
+
+
+
+# There's a lot of imbalance in the sample. So there are many ways to resampling! Resampling involves creating a new transformed version of the training dataset in which the selected examples have a different class distribution. This is a simple and effective strategy for imbalanced classification problems. The simplest strategy is to choose examples for the transformed dataset randomly, called random resampling. There are two main approaches to random resampling for imbalanced classification; they are oversampling and undersampling. -> Methods to solve class imbalance problem
+
+# A) Random Oversampling: Randomly duplicate examples in the minority class. B) Random Undersampling: Randomly delete examples in the majority class. C) SMOTE: Synthetic Minority Oversampling Technique
+
+# C) SMOTE: Synthetic Minority Oversampling Technique The upsample has the disadvantage of increasing the likelihood of overfitting since it replicates the minority class event. It usually outperform the downsampling. The downsample can discard potentially useful information and the sample can be biased, but it helps improving the run time SMOTE works by selecting examples that are close in the feature space, drawing a line between the examples in the feature space and drawing a new sample at a point along that line. To create a syntetic sample I want to use the SMOTE algorithm, which is an oversampling method which creates syntetic samples from the minority class instead of creating copies. It selects 2 or more similar instances and perturb them one at a time by random amount. This techniques should avoid overfitting problems but it risks adding noise to the model
+
+sm = SMOTE(random_state=42)
+X_SMOTE, y_SMOTE = sm.fit_resample(X_train, y_train)
+print(y_SMOTE.value_counts())
+
+
+# Helper Function for printing Accuracy matrices, plotting Confusiuon matrix and ROC curve
+
+def helper(model,X_train,y_train,X_test,y_test):
+    train_pred = model.predict(X_train)
+    test_pred = model.predict(X_test)
+
+    train_acc = accuracy_score(train_pred, y_train)
+    test_acc = accuracy_score(test_pred, y_test)
+    prec = precision_score(y_test, test_pred)
+    recc = recall_score(y_test, test_pred)
+    f1 = f1_score(y_test, test_pred)
+    acc_matrices = {'Train accuracy':train_acc,'Test accuracy':test_acc,'Precision':prec,'Recall':recc,'F1 Score':f1}
+
+    print('\nTraining Accuracy Score: ',train_acc)
+    print('Testing Accuracy Score: ',test_acc)
+    print('Precision on test data: ',prec)
+    print('Recall on test data: ',recc)
+    print('F1 score on test data: ',f1)
+    print('\n========================================================')
+    print('Classification Report on Train data')
+    print(classification_report(train_pred, y_train))
+    print('\n========================================================')
+    print('Classification Report on Test data')
+    print(classification_report(test_pred, y_test))
+
+    print('\n========================================================')
+    # Plotting Confusion Matrix and ROC curve
+    f,ax =  plt.subplots(1,2,figsize=(14,6))
+    #plt.figure(figsize=(6,4))
+    ConfMatrix = confusion_matrix(test_pred, y_test)
+    sns.heatmap(ConfMatrix,annot=True, cmap='YlGnBu', fmt="d", 
+                xticklabels = ['Non-default', 'Default'], 
+                yticklabels = ['Non-default', 'Default'],linewidths=.5,ax = ax[0])
+    ax[0].set_ylabel('True label')
+    ax[0].set_xlabel('Predicted label')
+    ax[0].set_title('Confusion Matrix')
+
+    global fpr,tpr,thresholds
+    fpr,tpr,thresholds = roc_curve(test_pred, y_test)
+    ax[1].plot(fpr,tpr,color = 'r')
+    ax[1].plot(fpr,fpr,color = 'green')
+    ax[1].set_ylabel('TPR')
+    ax[1].set_xlabel('FPR')
+    ax[1].set_title('ROC Curve')
+    plt.show()
+    return acc_matrices
+
+
+%%time
+lr = LogisticRegression()
+lr = lr.fit(X_SMOTE, y_SMOTE)
+Acc_mat_lr = helper(lr,X_SMOTE,y_SMOTE,X_test,y_test)
+
+
+%%time
+clf_tree = DecisionTreeClassifier( max_depth = 3, max_features=4, criterion='gini' )
+clf_tree = clf_tree.fit(X_SMOTE, y_SMOTE)
+
+Acc_mat_dt = helper(clf_tree,X_SMOTE,y_SMOTE,X_test,y_test)
+
+
+
+%%time
+from sklearn.ensemble import RandomForestClassifier
+
+radm_clf = RandomForestClassifier(oob_score=True,n_estimators=100 , max_depth = 10, max_features=4, n_jobs=-1)
+radm_clf = radm_clf.fit(X_SMOTE, y_SMOTE)
+Acc_mat_radm = helper(radm_clf,X_SMOTE,y_SMOTE,X_test,y_test)
+
+
+%%time
+from sklearn.ensemble import AdaBoostClassifier
+adb = AdaBoostClassifier(random_state=123)
+adb = adb.fit(X_SMOTE, y_SMOTE)
+Acc_mat_adb = helper(adb,X_SMOTE,y_SMOTE,X_test,y_test)
+
+
+%%time
+import xgboost as xgb
+xgb = XGBClassifier(random_state=123)
+xgb = xgb.fit(X_SMOTE, y_SMOTE)
+
+Acc_mat_xgb = helper(xgb,X_SMOTE,y_SMOTE,X_test,y_test)
+
+
+
+
+plot1=pd.DataFrame([Acc_mat_lr,Acc_mat_dt,Acc_mat_radm,Acc_mat_adb,Acc_mat_xgb], index=['Logistic Regression','DT','Random Forest','Adaboost','Xgboost']).transpose()
+
+plot1.plot(kind='bar',figsize=(8,6))
+plt.xlabel("Accuracy Matrices",fontsize=15)
+plt.ylabel("Accuracy",fontsize=15)
+plt.show()
+
+
+
+
