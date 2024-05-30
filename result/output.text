@@ -1,4 +1,5 @@
-The proposed solution for predicting default payments in Taiwan showed promising results. XGBoost achieved the highest accuracy at 81%, 
+The proposed solution for predicting default payments in Taiwan showed promising results. 
+XGBoost achieved the highest accuracy at 81%, 
 followed by Random Forest at 78%. 
 Logistic Regression provided valuable insights despite slightly lower accuracy. 
 
